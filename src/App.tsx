@@ -1,7 +1,7 @@
 import { AmountInput } from '@alfalab/core-components/amount-input/cssm';
 import { Button } from '@alfalab/core-components/button/cssm';
 import { Gap } from '@alfalab/core-components/gap/cssm';
-import { InputMobile } from '@alfalab/core-components/input/mobile';
+import { InputMobile } from '@alfalab/core-components/input/cssm/mobile';
 import { PhoneInput } from '@alfalab/core-components/phone-input/cssm';
 import { PureCell } from '@alfalab/core-components/pure-cell/cssm';
 import { Radio } from '@alfalab/core-components/radio/cssm';
