@@ -24,6 +24,16 @@ import { ThxLayout } from './thx/ThxLayout';
 import { getRatingColor } from './utils/round';
 import { formatWord, getWordEnding } from './utils/words';
 
+const VARIANT = 'var4';
+
+const trackEvent = (eventName: string, payload?: Record<string, string>) => {
+  if (typeof window.gtag !== 'function') {
+    return;
+  }
+
+  window.gtag('event', eventName, { var: VARIANT, ...payload });
+};
+
 const steps = [
   {
     title: 'Выберите сумму',
@@ -86,12 +96,31 @@ export const App = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!thxShow) {
+      trackEvent('7843_landing_impression_step1');
+    }
+  }, [thxShow]);
+
+  useEffect(() => {
+    if (view === 'select') {
+      trackEvent('7843_landing_impression_step2');
+    }
+  }, [view]);
+
   const submit = () => {
     if (!data.phone || !data.ticker || !data.lots || !data.message) {
       setData({ ...data, error: 'Заполните все поля' });
       return;
     }
     setData({ ...data, error: '' });
+
+    trackEvent('7843_send_click_step2_var4', {
+      dimension_1: data.phone,
+      dimension_2: selectedStock?.name ?? '',
+      dimension_3: String(data.lots),
+      dimension_4: data.message,
+    });
 
     // LS.setItem(LSKeys.ShowThx, true);
     setThx(true);
@@ -116,6 +145,11 @@ export const App = () => {
               placeholder="Введите номер получателя"
               value={data.phone}
               onChange={(_, { value }) => setData({ ...data, phone: value })}
+              onBlur={() => {
+                if (data.phone) {
+                  trackEvent('7843_number_input', { dimension_1: data.phone });
+                }
+              }}
               size={48}
             />
           </div>
@@ -125,51 +159,62 @@ export const App = () => {
               Актив
             </Typography.TitleMobile>
 
-            <SelectMobile
-              block
-              placeholder="Выберите актив"
-              onChange={p => setData({ ...data, ticker: p.selected?.key ?? '' })}
-              options={stocks.map(stock => ({
-                key: stock.ticker,
-                content: (
-                  <div className={appSt.row}>
-                    <img src={stock.icon} width={24} height={24} alt={stock.name} /> {stock.name}
-                  </div>
-                ),
-              }))}
-              Option={props => {
-                const stock = stocks.find(item => item.ticker === props.option.key)!;
-                return (
-                  <div className={props.className} {...props.innerProps}>
-                    <PureCell>
-                      <PureCell.Graphics verticalAlign="center">
-                        <img src={stock.icon} width={48} height={48} alt={stock.name} />
-                      </PureCell.Graphics>
-                      <PureCell.Content>
-                        <PureCell.Main>
-                          <Typography.Text view="primary-medium">{stock.name}</Typography.Text>
-                          <Typography.Text view="primary-small" color="secondary">
-                            {stock.price.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
-                          </Typography.Text>
-                        </PureCell.Main>
-                      </PureCell.Content>
-                      <PureCell.Graphics verticalAlign="center">
-                        <div className={appSt.shapeContainer}>
-                          <Shape color={getRatingColor(stock.rating)} className={appSt.shapeBg} />
-                          <Typography.Text view="primary-small" color="primary-inverted" className={appSt.shapeText}>
-                            {stock.rating}
-                          </Typography.Text>
-                        </div>
-                      </PureCell.Graphics>
-                      <PureCell.Graphics verticalAlign="center">
-                        <Radio block={true} size={24} checked={props.selected} />
-                      </PureCell.Graphics>
-                    </PureCell>
-                  </div>
-                );
-              }}
-              size={48}
-            />
+            <div onClickCapture={() => trackEvent('7843_asset_click_step1')}>
+              <SelectMobile
+                block
+                placeholder="Выберите актив"
+                onChange={p => {
+                  const ticker = p.selected?.key ?? '';
+                  const stock = stocks.find(item => item.ticker === ticker);
+
+                  setData({ ...data, ticker });
+
+                  if (stock) {
+                    trackEvent('7843_asset_click_step2', { dimension_2: stock.name });
+                  }
+                }}
+                options={stocks.map(stock => ({
+                  key: stock.ticker,
+                  content: (
+                    <div className={appSt.row}>
+                      <img src={stock.icon} width={24} height={24} alt={stock.name} /> {stock.name}
+                    </div>
+                  ),
+                }))}
+                Option={props => {
+                  const stock = stocks.find(item => item.ticker === props.option.key)!;
+                  return (
+                    <div className={props.className} {...props.innerProps}>
+                      <PureCell>
+                        <PureCell.Graphics verticalAlign="center">
+                          <img src={stock.icon} width={48} height={48} alt={stock.name} />
+                        </PureCell.Graphics>
+                        <PureCell.Content>
+                          <PureCell.Main>
+                            <Typography.Text view="primary-medium">{stock.name}</Typography.Text>
+                            <Typography.Text view="primary-small" color="secondary">
+                              {stock.price.toLocaleString('ru-RU', { style: 'currency', currency: 'RUB' })}
+                            </Typography.Text>
+                          </PureCell.Main>
+                        </PureCell.Content>
+                        <PureCell.Graphics verticalAlign="center">
+                          <div className={appSt.shapeContainer}>
+                            <Shape color={getRatingColor(stock.rating)} className={appSt.shapeBg} />
+                            <Typography.Text view="primary-small" color="primary-inverted" className={appSt.shapeText}>
+                              {stock.rating}
+                            </Typography.Text>
+                          </div>
+                        </PureCell.Graphics>
+                        <PureCell.Graphics verticalAlign="center">
+                          <Radio block={true} size={24} checked={props.selected} />
+                        </PureCell.Graphics>
+                      </PureCell>
+                    </div>
+                  );
+                }}
+                size={48}
+              />
+            </div>
           </div>
           <div style={{ marginTop: '12px' }}>
             <Typography.TitleMobile tag="h2" view="xsmall" weight="semibold">
@@ -187,7 +232,15 @@ export const App = () => {
               suffix={getWordEnding(data.lots, ['лот', 'лота', 'лотов'])}
               block
               size={48}
-              onChange={(_, { value }) => setData({ ...data, lots: value ?? 0 })}
+              onChange={(_, { value }) => {
+                const lots = value ?? 0;
+
+                setData({ ...data, lots });
+
+                if (lots > 0) {
+                  trackEvent('7843_lot_amount_change', { dimension_3: String(lots) });
+                }
+              }}
               stepper={{ step: 1, min: 1, max: 100 }}
             />
           </div>
@@ -202,6 +255,11 @@ export const App = () => {
               block
               size={48}
               onChange={(_, { value }) => setData({ ...data, message: value })}
+              onBlur={() => {
+                if (data.message) {
+                  trackEvent('7843_message_input', { dimension_4: data.message });
+                }
+              }}
               maxLength={128}
             />
           </div>
@@ -308,7 +366,14 @@ export const App = () => {
       <Gap size={96} />
 
       <div className={appSt.bottomBtn}>
-        <Button block view="primary" onClick={() => setView('select')}>
+        <Button
+          block
+          view="primary"
+          onClick={() => {
+            trackEvent('7843_send_click_step1');
+            setView('select');
+          }}
+        >
           Подарить акции
         </Button>
       </div>
